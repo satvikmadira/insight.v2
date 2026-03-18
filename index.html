@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>InsightAI — BI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f1f5f9;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --blue:#2563eb;--blue-dark:#1d4ed8;--blue-light:#eff6ff;
+  --green:#16a34a;--green-light:#f0fdf4;
+  --red:#dc2626;--red-light:#fef2f2;
+  --sidebar:#0f172a;
+  --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+  --r:10px;--r-lg:14px;
+}
+html,body{height:100%;font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg)}
+
+/* LOGIN */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--sidebar)}
+.lcard{background:var(--surface);border-radius:var(--r-lg);padding:40px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.lbrand{text-align:center;margin-bottom:28px}
+.lbrand h1{font-size:22px;font-weight:600}
+.lbrand p{font-size:13px;color:var(--text2);margin-top:3px}
+.lerr{background:var(--red-light);border:1px solid #fca5a5;border-radius:var(--r);padding:9px 12px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.fi{width:100%;padding:10px 12px;border:1.5px solid var(--border2);border-radius:var(--r);font-size:14px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.fi.mono{font-family:var(--mono);font-size:12px}
+.lhint{text-align:center;font-size:12px;color:var(--text3);margin-top:14px;line-height:1.8}
+.lhint code{font-family:var(--mono);background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--text2)}
+
+/* BUTTONS */
+.btn{padding:10px 18px;border:none;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;transition:background .15s;white-space:nowrap}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-dark)}
+.btn-blue:disabled{opacity:.5;cursor:not-allowed}
+.btn-full{width:100%}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+.btn-ghost{background:transparent;border:1.5px solid var(--border2);color:var(--text2)}.btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+.btn-sm{padding:6px 12px;font-size:12px}
+
+/* APP */
+#app{display:none;height:100vh;flex-direction:row}
+#app.show{display:flex}
+.sidebar{width:220px;flex-shrink:0;background:var(--sidebar);display:flex;flex-direction:column}
+.slogo{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+.slogo-icon{font-size:18px;background:var(--blue);width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.slogo-title{font-size:14px;font-weight:600;color:#f1f5f9}
+.slogo-sub{font-size:11px;color:#475569}
+.suser{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:8px}
+.sav{width:28px;height:28px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0}
+.sname{font-size:13px;color:#cbd5e1;font-weight:500}
+.srole{font-size:10px;color:#475569}
+.snav{flex:1;padding:8px}
+.nlabel{font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:.08em;font-weight:600;padding:8px 8px 3px}
+.nlink{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;color:#94a3b8;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:1px}
+.nlink:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
+.nlink.active{background:rgba(37,99,235,.25);color:#93c5fd}
+.sfooter{padding:10px 8px;border-top:1px solid rgba(255,255,255,.06)}
+.lout{display:flex;align-items:center;gap:8px;padding:8px 10px;width:100%;background:transparent;border:none;border-radius:8px;color:#475569;font-size:13px;font-family:var(--font);cursor:pointer;transition:all .15s}
+.lout:hover{background:rgba(255,255,255,.05);color:#94a3b8}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:600}
+.badges{display:flex;gap:6px}
+.badge{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--text2);background:var(--surface2);font-weight:500}
+.badge.ok{background:var(--green-light);border-color:#86efac;color:#15803d}
+.badge.warn{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.badge.info{background:var(--blue-light);border-color:#93c5fd;color:#1d4ed8}
+.pcontent{flex:1;overflow-y:auto;padding:24px}
+.page{display:none}.page.active{display:block}
+.ph{margin-bottom:20px}
+.ph h2{font-size:18px;font-weight:600}
+.ph p{font-size:13px;color:var(--text2);margin-top:3px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.cdesc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.krow{display:flex;gap:8px}.krow .fi{flex:1}
+
+/* QUERY */
+.qbox{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.qrow{display:flex;gap:8px;margin-bottom:12px}
+.qtxt{flex:1;padding:10px 12px;border:1.5px solid var(--border2);border-radius:var(--r);font-size:14px;font-family:var(--font);color:var(--text);resize:none;outline:none;transition:border-color .15s,box-shadow .15s}
+.qtxt:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:5px 10px;border:1px solid var(--border2);border-radius:20px;cursor:pointer;color:var(--text2);background:var(--surface2);transition:all .12s}
+.chip:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+
+/* STATUS */
+.srow{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text3);min-height:22px;margin-bottom:8px}
+.spin{width:13px;height:13px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ebanner{background:var(--red-light);border:1px solid #fca5a5;border-radius:var(--r);padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
+
+/* INSIGHT */
+.ibanner{background:var(--blue-light);border-left:3px solid var(--blue);border-radius:0 var(--r) var(--r) 0;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.6}
+.ilabel{font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+
+/* METRICS */
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.mtile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.mlbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.mval{font-size:22px;font-weight:600;line-height:1.1}
+.msub{font-size:11px;color:var(--text3);margin-top:3px}
+.up{color:var(--green)}.down{color:var(--red)}
+
+/* CHARTS */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.ctile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.ctile.full{grid-column:1/-1}
+.ctitle{font-size:13px;font-weight:600;margin-bottom:2px}
+.csub{font-size:11px;color:var(--text3);margin-bottom:12px}
+.cwrap{position:relative;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)}
+.ld{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+/* UPLOAD */
+.dz{border:2px dashed var(--border2);border-radius:var(--r-lg);padding:44px 28px;text-align:center;cursor:pointer;background:var(--surface);transition:all .15s}
+.dz:hover,.dz.drag{border-color:var(--blue);background:var(--blue-light)}
+.dz-icon{font-size:32px;margin-bottom:8px}
+.dz-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.dz-sub{font-size:13px;color:var(--text2)}
+.ads{background:var(--green-light);border:1px solid #86efac;border-radius:var(--r);padding:10px 14px;font-size:13px;color:#15803d;margin-bottom:12px;display:none;align-items:center;justify-content:space-between}
+.ads.show{display:flex}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-top:14px;display:none;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tscroll{overflow-x:auto}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th{background:var(--surface2);padding:7px 10px;text-align:left;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+.dtbl td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.dtbl tr:last-child td{border-bottom:none}
+
+/* HISTORY */
+.hitem{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.hq{font-size:13px;font-weight:500;margin-bottom:4px}
+.hmeta{display:flex;gap:10px;font-size:11px;color:var(--text3)}
+.hok{color:var(--green)}.hfail{color:var(--red)}
+.hint2{font-size:12px;color:var(--text2);margin-top:4px;font-style:italic}
+.empty{text-align:center;padding:40px;color:var(--text3);font-size:13px}
+
+/* SETTINGS */
+.phint{font-size:12px;color:var(--text2);background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:8px 12px;margin-top:8px;line-height:1.7}
+.phint a{color:var(--blue)}
+.kst{font-size:12px;margin-top:8px;min-height:18px}
+.kst.ok{color:var(--green)}.kst.bad{color:var(--red)}
+.dbst{font-size:13px;padding:10px 14px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
+.dbst.ok{background:var(--green-light);border-color:#86efac;color:#15803d}
+.dbst.bad{background:var(--red-light);border-color:#fca5a5;color:var(--red)}
+
+/* USERS */
+.utbl{width:100%;border-collapse:collapse;font-size:13px}
+.utbl th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.utbl td{padding:9px 12px;border-bottom:1px solid var(--border)}
+.utbl tr:last-child td{border-bottom:none}
+.rbadge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
+.radmin{background:#fef3c7;color:#92400e}
+.ranalyst{background:var(--blue-light);color:#1d4ed8}
+.rviewer{background:var(--surface2);color:var(--text2)}
+.dbtn{padding:4px 10px;background:transparent;border:1px solid #fca5a5;border-radius:6px;color:var(--red);font-size:11px;cursor:pointer}
+.dbtn:hover{background:var(--red-light)}
+.tbar{display:flex;gap:8px;margin-bottom:14px}
+.mt{margin-top:12px}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="lcard">
+    <div class="lbrand">
+      <div style="font-size:28px;margin-bottom:8px">📊</div>
+      <h1>InsightAI</h1>
+      <p>Conversational BI Dashboard</p>
+    </div>
+    <div class="lerr" id="lerr"></div>
+    <div class="fg"><label>Username</label><input class="fi" id="lu" placeholder="admin / demo / guest" autocomplete="username"/></div>
+    <div class="fg"><label>Password</label><input class="fi" id="lp" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn btn-blue btn-full" onclick="login()">Sign In →</button>
+    <div class="lhint">Demo: <code>admin</code>/<code>admin123</code> &nbsp;·&nbsp; <code>demo</code>/<code>demo123</code></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="slogo">
+      <div class="slogo-icon">📊</div>
+      <div><div class="slogo-title">InsightAI</div><div class="slogo-sub">BI Dashboard</div></div>
+    </div>
+    <div class="suser">
+      <div class="sav" id="sav">AD</div>
+      <div><div class="sname" id="sname">admin</div><div class="srole" id="srole">Admin</div></div>
+    </div>
+    <nav class="snav">
+      <div class="nlabel">Main</div>
+      <div class="nlink active" onclick="goto('dashboard',this)">📊 Dashboard</div>
+      <div class="nlink" onclick="goto('upload',this)">📁 Upload Data</div>
+      <div class="nlink" onclick="goto('history',this)">🕐 Query History</div>
+      <div class="nlabel">System</div>
+      <div class="nlink" onclick="goto('settings',this)">⚙️ Settings</div>
+      <div class="nlink" id="usersNav" onclick="goto('users',this)">👥 Users</div>
+    </nav>
+    <div class="sfooter">
+      <button class="lout" onclick="logout()">🚪 Logout</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="ttitle">Dashboard</div>
+      <div class="badges">
+        <span class="badge info" id="dsBadge">Sample data</span>
+        <span class="badge warn" id="aiBadge">No AI key</span>
+        <span class="badge" id="dbBadge">Checking DB...</span>
+      </div>
+    </div>
+
+    <div class="pcontent">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="ph"><h2>Ask your data anything</h2><p>Plain English → instant interactive charts, powered by your chosen AI.</p></div>
+        <div class="qbox">
+          <div class="qrow">
+            <textarea class="qtxt" id="qtxt" rows="2" placeholder="e.g. Show monthly sales revenue broken down by region for Q3"></textarea>
+            <button class="btn btn-blue" id="genbtn" onclick="runQuery()">⚡ Generate</button>
+          </div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="srow" id="srow"></div>
+        <div class="ebanner" id="ebanner"></div>
+        <div id="dashout"></div>
+      </div>
+
+      <!-- UPLOAD -->
+      <div id="page-upload" class="page">
+        <div class="ph"><h2>Upload Data</h2><p>Upload a CSV file and query it with AI instantly.</p></div>
+        <div class="ads" id="adsbar"><span id="adslabel"></span><span style="cursor:pointer;font-size:11px;opacity:.7" onclick="clearDS()">✕ Clear</span></div>
+        <div class="dz" id="dz" onclick="document.getElementById('fi').click()" ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)">
+          <div class="dz-icon">📂</div>
+          <div class="dz-title">Drop CSV here or click to browse</div>
+          <div class="dz-sub">CSV files up to 10MB</div>
+        </div>
+        <input type="file" id="fi" accept=".csv" style="display:none" onchange="handleCSV(event)"/>
+        <div class="pcard" id="pcard">
+          <div class="ptop">
+            <div style="font-size:14px;font-weight:600" id="ptitle"></div>
+            <div style="font-size:12px;color:var(--text3)" id="pmeta"></div>
+          </div>
+          <div class="tscroll"><table class="dtbl" id="ptbl"></table></div>
+          <button class="btn btn-green mt" onclick="activateDS()">✓ Use this dataset →</button>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="page-history" class="page">
+        <div class="ph"><h2>Query History</h2><p>All queries saved in the database.</p></div>
+        <div class="tbar">
+          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">🔄 Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearHistory()">🗑️ Clear All</button>
+        </div>
+        <div id="hlist"></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="page-settings" class="page">
+        <div class="ph"><h2>Settings</h2><p>Configure your AI provider and API key.</p></div>
+        <div class="card">
+          <h3>🤖 AI Provider & Key</h3>
+          <p class="cdesc">Choose your AI provider, paste your API key. Works with any provider.</p>
+          <div class="fg">
+            <label>Provider</label>
+            <select class="fi" id="prov" onchange="updateHint()">
+              <option value="gemini">⭐ Google Gemini — FREE &amp; Recommended</option>
+              <option value="groq">⭐ Groq — FREE &amp; Fast</option>
+              <option value="claude">Anthropic Claude</option>
+              <option value="openai">OpenAI GPT</option>
+              <option value="mistral">Mistral AI</option>
+              <option value="cohere">Cohere</option>
+              <option value="openrouter">OpenRouter</option>
+            </select>
+          </div>
+          <div class="phint" id="phint"></div>
+          <div class="fg mt">
+            <label>API Key</label>
+            <div class="krow">
+              <input type="password" class="fi mono" id="akey" placeholder="Paste your API key..."/>
+              <button class="btn btn-blue" onclick="saveSettings()">Save & Test</button>
+            </div>
+          </div>
+          <div class="kst" id="kst"></div>
+        </div>
+        <div class="card">
+          <h3>🗄️ Database Status</h3>
+          <div class="dbst" id="dbst">Checking...</div>
+          <button class="btn btn-ghost btn-sm mt" onclick="checkDB()">Check Connection</button>
+        </div>
+        <div class="card">
+          <h3>ℹ️ About InsightAI</h3>
+          <p class="cdesc" style="margin-bottom:0">
+            Full-stack BI Dashboard · Frontend: HTML+CSS+JS · Backend: Python FastAPI · Database: SQLite<br>
+            Supports: Gemini, Groq, OpenRouter, Claude, OpenAI, Mistral, Cohere
+          </p>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div id="page-users" class="page">
+        <div class="ph"><h2>User Management</h2><p>Add or remove dashboard users.</p></div>
+        <div class="card">
+          <h3>➕ Add User</h3>
+          <div class="frow">
+            <div class="fg"><label>Username</label><input class="fi" id="nu" placeholder="username"/></div>
+            <div class="fg"><label>Password</label><input type="password" class="fi" id="np" placeholder="password"/></div>
+            <div class="fg"><label>Role</label>
+              <select class="fi" id="nr">
+                <option value="analyst">Analyst</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-blue mt" onclick="addUser()">Add User</button>
+          <div class="kst" id="ust"></div>
+        </div>
+        <div class="card">
+          <h3>👥 All Users</h3>
+          <div id="ulist"></div>
+          <button class="btn btn-ghost btn-sm mt" onclick="loadUsers()">🔄 Refresh</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ CONFIG — change this to your backend URL ═══
+const API = 'http://localhost:8000';
+
+// ═══ STATE ═══
+const S = {
+  token: localStorage.getItem('ins_token') || '',
+  username: localStorage.getItem('ins_user') || '',
+  role: localStorage.getItem('ins_role') || '',
+  data: null, filename: 'Sample data',
+  charts: [], pending: null
+};
+
+const PAL = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#db2777','#0891b2','#059669'];
+const EX = [
+  'Show monthly revenue trend for all regions',
+  'Which product category had the highest revenue?',
+  'Compare sales rep performance by total revenue',
+  'Revenue breakdown by region as a percentage',
+  'Top 5 months by total revenue',
+  'Q4 vs Q3 across all categories',
+  'Best customer satisfaction by region',
+  'Correlation between deals closed and revenue'
+];
+const PINFO = {
+  gemini:     {hint:'🆓 100% FREE — Most reliable option! <br>1. Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a><br>2. Sign in with your Gmail<br>3. Click Create API Key<br>4. Copy it (starts with <b>AIza...</b>) and paste above<br>5. Click Save &amp; Test'},
+  groq:       {hint:'🆓 Free! 14,400 req/day. <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> → Sign up → Create API key. Starts with <b>gsk_...</b>'},
+  openrouter: {hint:'⚠️ Free models go offline often. Use Gemini or Groq instead for reliability. If you want OpenRouter: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>. Key starts with <b>sk-or-...</b>'},
+  claude:     {hint:'💳 Paid (free trial). <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> → Create key. Starts with <b>sk-ant-...</b>'},
+  openai:     {hint:'💳 Paid. <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → Create key. Starts with <b>sk-...</b>'},
+  mistral:    {hint:'🆓 Free tier. <a href="https://console.mistral.ai" target="_blank">console.mistral.ai</a> → Get API key.'},
+  cohere:     {hint:'🆓 Free tier (1000/month). <a href="https://dashboard.cohere.com" target="_blank">dashboard.cohere.com</a> → Get API key.'}
+};
+
+// ═══ INIT ═══
+window.onload = async () => {
+  if (S.token) { showApp(); initApp(); }
+  updateHint();
+};
+
+function initApp() {
+  loadSampleData();
+  buildChips();
+  checkDB();
+  updateHint();
+  if (S.role !== 'admin') document.getElementById('usersNav').style.display = 'none';
+}
+
+// ═══ API HELPER ═══
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+S.token, ...(opts.headers||{}) }
+  });
+  return res;
+}
+
+// ═══ AUTH ═══
+async function login() {
+  const u = document.getElementById('lu').value.trim();
+  const p = document.getElementById('lp').value;
+  const err = document.getElementById('lerr');
+  err.style.display = 'none';
+  try {
+    const res = await fetch(API+'/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p}) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || 'Login failed');
+    S.token=d.token; S.username=d.username; S.role=d.role;
+    localStorage.setItem('ins_token',d.token);
+    localStorage.setItem('ins_user',d.username);
+    localStorage.setItem('ins_role',d.role);
+    showApp(); initApp();
+  } catch(e) { err.textContent=e.message; err.style.display='block'; }
+}
+
+function showApp() {
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('sav').textContent=S.username.slice(0,2).toUpperCase();
+  document.getElementById('sname').textContent=S.username;
+  document.getElementById('srole').textContent=S.role;
+}
+
+function logout() {
+  ['ins_token','ins_user','ins_role'].forEach(k=>localStorage.removeItem(k));
+  Object.assign(S,{token:'',username:'',role:'',data:null,charts:[],pending:null});
+  document.getElementById('login').style.display='flex';
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+  document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus()});
+  document.getElementById('qtxt')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();runQuery();}});
+});
+
+// ═══ NAV ═══
+function goto(pg,el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nlink').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+pg).classList.add('active');
+  el.classList.add('active');
+  const t={dashboard:'Dashboard',upload:'Upload Data',history:'Query History',settings:'Settings',users:'Users'};
+  document.getElementById('ttitle').textContent=t[pg]||pg;
+  if(pg==='history')loadHistory();
+  if(pg==='users')loadUsers();
+}
+
+function buildChips() {
+  document.getElementById('chips').innerHTML=EX.map(e=>`<div class="chip" onclick="setQ('${e.replace(/'/g,"\\'")}')"> ${e.length>42?e.slice(0,40)+'…':e}</div>`).join('');
+}
+function setQ(q){document.getElementById('qtxt').value=q;}
+
+// ═══ SAMPLE DATA ═══
+async function loadSampleData() {
+  try {
+    const res = await api('/data/sample');
+    if(res.ok){const d=await res.json();S.data=d.data;}
+  } catch(e) { S.data=makeSample(); }
+}
+
+function makeSample() {
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const R=['North','South','East','West'],C=['Electronics','Clothing','Home & Garden','Sports','Books'];
+  const RP=['Alice Chen','Bob Martinez','Carol Singh','David Kim','Emma Johnson'];
+  const B={Electronics:120000,Clothing:75000,'Home & Garden':55000,Sports:45000,Books:22000};
+  const RF={North:1.1,South:.85,East:1.2,West:1.0};
+  const rows=[];
+  M.forEach((m,mi)=>R.forEach(r=>C.forEach(c=>{
+    let v=B[c]*RF[r];
+    if(mi>=10)v*=1.4;else if(mi>=5&&mi<=7)v*=1.15;
+    v=Math.round(v+(Math.random()-.5)*v*.15);
+    rows.push({month:m,region:r,category:c,revenue:Math.max(v,0),units_sold:Math.round(Math.max(v,0)/(80+Math.random()*170)),profit_margin:Math.round((0.12+Math.random()*.28)*100)/100,deals_closed:Math.round(8+Math.random()*26),customer_satisfaction:Math.round((3.2+Math.random()*1.8)*10)/10,sales_rep:RP[Math.floor(Math.random()*RP.length)]});
+  })));
+  return rows;
+}
+
+// ═══ STATUS ═══
+function setStatus(msg,loading=false){
+  const el=document.getElementById('srow');
+  el.innerHTML=!msg?'':(loading?`<div class="spin"></div><span>${msg}</span>`:`<span>${msg}</span>`);
+}
+function showErr(msg){const e=document.getElementById('ebanner');e.textContent=msg;e.style.display='block';}
+function hideErr(){document.getElementById('ebanner').style.display='none';}
+
+// ═══ QUERY ═══
+async function runQuery() {
+  const q=document.getElementById('qtxt').value.trim();
+  if(!q)return;
+  hideErr(); document.getElementById('genbtn').disabled=true;
+  killCharts(); document.getElementById('dashout').innerHTML='';
+  setStatus('Sending to AI backend…',true);
+  try {
+    const res=await api('/query',{method:'POST',body:JSON.stringify({question:q,data:S.data,filename:S.filename})});
+    const result=await res.json();
+    if(!res.ok)throw new Error(result.detail||'Query failed');
+    if(!result.answerable){showErr('Cannot answer: '+(result.reason||'Data not available.'));setStatus('');}
+    else{renderDash(result);setStatus(`✓ Done in ${result.elapsed_ms||'?'}ms via ${result.provider||'AI'}`);}
+    if(result.provider){document.getElementById('aiBadge').textContent=result.provider;document.getElementById('aiBadge').className='badge ok';}
+  } catch(e){
+    showErr(e.message.includes('Failed to fetch')?'Cannot reach backend. Make sure Python server is running on port 8000. Run: python main.py':('Error: '+e.message));
+    setStatus('');
+  }
+  document.getElementById('genbtn').disabled=false;
+}
+
+// ═══ RENDER ═══
+function killCharts(){S.charts.forEach(c=>{try{c.destroy()}catch(e){}});S.charts=[];}
+
+function renderDash(r) {
+  let h='';
+  if(r.insight)h+=`<div class="ibanner"><div class="ilabel">Key Insight</div>${r.insight}</div>`;
+  if(r.metrics?.length){
+    h+='<div class="mgrid">';
+    r.metrics.slice(0,4).forEach(m=>{
+      const tc=m.trend==='up'?'up':m.trend==='down'?'down':'';
+      const ti=m.trend==='up'?'↑ ':m.trend==='down'?'↓ ':'';
+      h+=`<div class="mtile"><div class="mlbl">${m.label}</div><div class="mval">${m.value}</div><div class="msub ${tc}">${ti}${m.sub||''}</div></div>`;
+    });
+    h+='</div>';
+  }
+  if(r.charts?.length){
+    h+='<div class="cgrid">';
+    r.charts.forEach((ch,i)=>{
+      const hb=ch.type==='horizontalBar'?Math.max(240,(ch.labels||[]).length*42+80):260;
+      h+=`<div class="ctile${ch.full?' full':''}"><div class="ctitle">${ch.title||''}</div><div class="csub">${ch.subtitle||''}</div><div class="cwrap" style="height:${hb}px"><canvas id="cv_${i}"></canvas></div><div class="legend" id="lg_${i}"></div></div>`;
+    });
+    h+='</div>';
+  }
+  document.getElementById('dashout').innerHTML=h;
+  setTimeout(()=>{
+    (r.charts||[]).forEach((ch,i)=>{
+      const cv=document.getElementById('cv_'+i); if(!cv)return;
+      const isD=ch.type==='pie'||ch.type==='doughnut', isH=ch.type==='horizontalBar';
+      const ds=(ch.datasets||[]).map((d,di)=>{
+        const c=d.color||PAL[di%PAL.length];
+        if(isD)return{label:d.label,data:d.data,backgroundColor:PAL.slice(0,d.data.length),borderWidth:2,borderColor:'#fff'};
+        return{label:d.label,data:d.data,backgroundColor:ch.type==='line'?c+'22':c,borderColor:c,borderWidth:ch.type==='line'?2:0,fill:ch.type==='line',tension:.38,pointRadius:ch.type==='line'?3:0};
+      });
+      const fv=v=>{if(typeof v!=='number')return v;if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1000)return'$'+Math.round(v/1000)+'K';return Math.round(v*100)/100;};
+      const inst=new Chart(cv,{
+        type:isH?'bar':isD?'doughnut':ch.type,
+        data:{labels:ch.labels,datasets:ds},
+        options:{indexAxis:isH?'y':'x',responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{backgroundColor:'#0f172a',padding:10,cornerRadius:8,callbacks:{label:ctx=>' '+fv(ctx.parsed?.y??ctx.parsed?.x??ctx.raw??0)}}},
+          scales:isD?{}:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#94a3b8',autoSkip:true,maxRotation:40,callback:v=>typeof v==='number'?fv(v):v},border:{display:false}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#94a3b8',callback:v=>typeof v==='number'?fv(v):v},border:{display:false}}}}
+      });
+      S.charts.push(inst);
+      const lg=document.getElementById('lg_'+i); if(!lg)return;
+      if(isD)(ch.labels||[]).forEach((l,li)=>{lg.innerHTML+=`<span class="li"><span class="ld" style="background:${PAL[li%PAL.length]}"></span>${l}</span>`;});
+      else(ch.datasets||[]).forEach((d,di)=>{const c=d.color||PAL[di%PAL.length];lg.innerHTML+=`<span class="li"><span class="ld" style="background:${c}"></span>${d.label}</span>`;});
+    });
+  },50);
+}
+
+// ═══ SETTINGS ═══
+function updateHint(){
+  const p=document.getElementById('prov')?.value||'gemini';
+  const info=PINFO[p]; if(!info)return;
+  document.getElementById('phint').innerHTML=info.hint;
+}
+
+async function saveSettings(){
+  const provider=document.getElementById('prov').value;
+  const key=document.getElementById('akey').value.trim();
+  const kst=document.getElementById('kst');
+  if(!key){kst.textContent='Please enter an API key.';kst.className='kst bad';return;}
+  kst.textContent='Saving…';kst.className='kst';
+  try{
+    const res=await api('/settings/ai',{method:'POST',body:JSON.stringify({provider,api_key:key})});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||'Failed');
+    kst.textContent='✓ '+d.message;kst.className='kst ok';
+    document.getElementById('aiBadge').textContent=provider+' active';
+    document.getElementById('aiBadge').className='badge ok';
+  }catch(e){kst.textContent='✗ '+e.message;kst.className='kst bad';}
+}
+
+async function checkDB(){
+  const el=document.getElementById('dbst');
+  try{
+    const res=await api('/health');
+    const d=await res.json();
+    el.textContent='✓ '+d.message;el.className='dbst ok';
+    document.getElementById('dbBadge').textContent='DB OK';
+    document.getElementById('dbBadge').className='badge ok';
+  }catch(e){
+    el.textContent='✗ Backend offline. Run: cd backend && python main.py';
+    el.className='dbst bad';
+    document.getElementById('dbBadge').textContent='DB offline';
+    document.getElementById('dbBadge').className='badge warn';
+  }
+}
+
+// ═══ HISTORY ═══
+async function loadHistory(){
+  const el=document.getElementById('hlist');
+  el.innerHTML='<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';
+  try{
+    const res=await api('/history');
+    const d=await res.json();
+    if(!d.length){el.innerHTML='<div class="empty">No queries yet. Head to Dashboard!</div>';return;}
+    el.innerHTML=d.map(h=>`<div class="hitem"><div class="hq">${h.question}</div><div class="hmeta"><span>${h.created_at}</span><span>${h.provider||'?'}</span><span class="${h.success?'hok':'hfail'}">${h.success?'✓ Answered':'✗ Failed'}</span></div>${h.insight?`<div class="hint2">${h.insight}</div>`:''}</div>`).join('');
+  }catch(e){el.innerHTML=`<div class="empty">${e.message}</div>`;}
+}
+
+async function clearHistory(){
+  if(!confirm('Clear all history?'))return;
+  await api('/history',{method:'DELETE'});
+  loadHistory();
+}
+
+// ═══ USERS ═══
+async function loadUsers(){
+  const el=document.getElementById('ulist');
+  try{
+    const res=await api('/users');
+    const d=await res.json();
+    if(!d.length){el.innerHTML='<p style="color:var(--text3);font-size:13px">No users.</p>';return;}
+    el.innerHTML=`<table class="utbl"><thead><tr><th>Username</th><th>Role</th><th>Created</th><th>Action</th></tr></thead><tbody>${d.map(u=>`<tr><td><strong>${u.username}</strong></td><td><span class="rbadge r${u.role}">${u.role}</span></td><td>${u.created_at||'—'}</td><td>${u.username!==S.username?`<button class="dbtn" onclick="delUser('${u.username}')">Delete</button>`:'<span style="color:var(--text3);font-size:11px">You</span>'}</td></tr>`).join('')}</tbody></table>`;
+  }catch(e){el.innerHTML=`<p style="color:var(--red);font-size:13px">${e.message}</p>`;}
+}
+
+async function addUser(){
+  const u=document.getElementById('nu').value.trim(),p=document.getElementById('np').value,r=document.getElementById('nr').value;
+  const st=document.getElementById('ust');
+  if(!u||!p){st.textContent='Username and password required.';st.className='kst bad';return;}
+  try{
+    const res=await api('/users',{method:'POST',body:JSON.stringify({username:u,password:p,role:r})});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||'Failed');
+    st.textContent='✓ User created!';st.className='kst ok';
+    document.getElementById('nu').value='';document.getElementById('np').value='';
+    loadUsers();
+  }catch(e){st.textContent='✗ '+e.message;st.className='kst bad';}
+}
+
+async function delUser(u){
+  if(!confirm(`Delete "${u}"?`))return;
+  await api(`/users/${u}`,{method:'DELETE'});
+  loadUsers();
+}
+
+// ═══ CSV UPLOAD ═══
+function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag');}
+function dzLeave(){document.getElementById('dz').classList.remove('drag');}
+function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f?.name.endsWith('.csv'))loadCSV(f);}
+function handleCSV(e){const f=e.target.files[0];if(f)loadCSV(f);}
+
+function loadCSV(file){
+  Papa.parse(file,{header:true,skipEmptyLines:true,dynamicTyping:true,
+    complete:r=>{S.pending={rows:r.data,filename:file.name,cols:r.meta.fields};showPreview(r.data,r.meta.fields,file.name);},
+    error:e=>alert('CSV error: '+e.message)
+  });
+}
+
+function showPreview(rows,cols,fname){
+  document.getElementById('pcard').style.display='block';
+  document.getElementById('ptitle').textContent='📄 '+fname;
+  document.getElementById('pmeta').textContent=rows.length.toLocaleString()+' rows · '+cols.length+' cols';
+  const pv=rows.slice(0,8);
+  document.getElementById('ptbl').innerHTML=`<thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${pv.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+function activateDS(){
+  if(!S.pending)return;
+  S.data=S.pending.rows;S.filename=S.pending.filename;
+  document.getElementById('dsBadge').textContent=S.filename;
+  document.getElementById('dsBadge').className='badge info';
+  const b=document.getElementById('adsbar');
+  document.getElementById('adslabel').textContent=`✓ ${S.filename} (${S.data.length.toLocaleString()} rows)`;
+  b.classList.add('show');document.getElementById('pcard').style.display='none';
+}
+
+function clearDS(){
+  S.data=makeSample();S.filename='Sample data';
+  document.getElementById('dsBadge').textContent='Sample data';
+  document.getElementById('dsBadge').className='badge info';
+  document.getElementById('adsbar').classList.remove('show');
+  S.pending=null;
+}
+</script>
+</body>
+</html>
